@@ -5,12 +5,12 @@ import 'firebase/storage';
 
 
 const config = {
-  apiKey: 'AIzaSyD-82OponPRUm64_eX2H2tBqkpbV-fyxXs',
-  authDomain: 'vuechat-cf968.firebaseapp.com',
-  databaseURL: 'https://vuechat-cf968.firebaseio.com',
-  projectId: 'vuechat-cf968',
-  storageBucket: 'vuechat-cf968.appspot.com',
-  messagingSenderId: '697585730710',
+  apiKey: '',
+  authDomain: '',
+  databaseURL: '',
+  projectId: '',
+  storageBucket: '',
+  messagingSenderId: '',
 };
 
 firebase.initializeApp(config);
