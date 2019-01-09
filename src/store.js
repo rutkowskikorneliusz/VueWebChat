@@ -1,6 +1,5 @@
 import Vue from 'vue';
 import Vuex from 'vuex';
-import Axios from 'axios';
 
 const fb = require('./firebaseConfig.js');
 
@@ -25,36 +24,77 @@ export const store = new Vuex.Store({
     messegesList: [],
   },
   actions: {
+    // Users actions
+    registerUser({ commit }, payload) {
+      const defaultAvatar = 'https://firebasestorage.googleapis.com/v0/b/vuechat-cf968.appspot.com/o/avatars%2FKxswgzbmF5c9WpUHbx61gy2JnI23?alt=media&token=2d77a398-2f53-471e-a065-832cfc91c36e';
+      return fb.auth.createUserWithEmailAndPassword(payload.email, payload.password).then((newUser) => {
+        commit('setCurrentUser', newUser.user);
+        return fb.usersCollection.doc(newUser.user.uid).set({
+          id: newUser.user.uid,
+          name: payload.name,
+          avatar: defaultAvatar,
+          workplace: '',
+          city: '',
+          birthday: '',
+          phone: '',
+        }).then(() => {
+          store.dispatch('fetchUserProfile');
+        });
+      });
+    },
+    loginUser({ commit }, payload) {
+      return fb.auth.signInWithEmailAndPassword(payload.email, payload.password).then((user) => {
+        commit('setCurrentUser', user.user);
+        store.dispatch('fetchUserProfile');
+        store.dispatch('fetchUsersList');
+      });
+    },
+    logoutUser() {
+      return store.dispatch('setUserActiveStatus').then(() => fb.auth.signOut());
+    },
+    setUserActiveStatus({ state }) {
+      return fb.usersCollection.doc(state.userProfile.id).update({
+        active: state.userProfile.active,
+      });
+    },
     fetchUserProfile({ commit, state }) {
       fb.usersCollection
-        .doc(state.currentUser.uid)
-        .get()
-        .then((res) => {
+        .doc(state.currentUser.uid).get().then((res) => {
           commit('setUserProfile', res.data());
-          commit("changeUserActiveStatus",true);
-          store.dispatch("setUserActiveStatus")
+          commit('changeUserActiveStatus', true);
+          store.dispatch('setUserActiveStatus');
         })
         .catch((err) => {
-          fb.makeToast(err, 'error')
+          this.$toasted.show(err, { position: 'top-center', duration: 5000, action: { text: 'OK' } });
         });
     },
-    logoutUser({ commit }) {
-      fb.auth
-        .signOut()
-        .then(() => {
-          commit('setCurrentUser', null);
-          commit('setUserProfile', {});
-          fb.makeToast("Successfully logged out");
-         
-        })
-        .catch(err => {
-          // fb.makeToast(err, "error");
-          console.log(err)
+    updateUserProfile({ state }, payload) {
+      const avatarURL = '';
+      if (typeof state.userProfile.avatar === 'string') {
+        return fb.usersCollection.doc(state.userProfile.id).update({
+          name: payload.name,
+          workplace: payload.workplace,
+          city: payload.city,
+          birthday: payload.birthday,
+          phone: payload.phone,
         });
-
+      }
+      return fb.avatarsStorage.child(state.userProfile.id).put(payload.avatar).then(snapshot => fb.avatarsStorage.child(state.userProfile.id).getDownloadURL().then(url => fb.usersCollection.doc(state.userProfile.id).update({
+        name: payload.name,
+        workplace: payload.workplace,
+        city: payload.city,
+        birthday: payload.birthday,
+        phone: payload.phone,
+        avatar: url,
+      })));
+    },
+    getReceiverUserProfile({ state, commit }) {
+      fb.usersCollection.doc(state.receiverUser).get().then((snapshot) => {
+        commit('setReceiverUserProfile', snapshot.data());
+      });
     },
     fetchUsersList({ commit }) {
-      fb.usersCollection.onSnapshot((snapshot) => {
+      return fb.usersCollection.onSnapshot((snapshot) => {
         const usersArray = [];
         snapshot.forEach((users) => {
           const user = users.data();
@@ -64,6 +104,8 @@ export const store = new Vuex.Store({
         commit('setUsersList', usersArray);
       });
     },
+
+    // Chat actions
     makeUsersPairChat({ state, commit }) {
       let chatID = '';
       if (state.currentUser.uid < state.receiverUser) {
@@ -87,79 +129,19 @@ export const store = new Vuex.Store({
       });
     },
     sendMessage({ state }, payload) {
-      fb.chatsCollection.doc(state.currentChatId).collection('messages').doc().set({
+      return fb.chatsCollection.doc(state.currentChatId).collection('messages').doc().set({
         message: payload,
         senderID: state.userProfile.id,
         senderName: state.userProfile.name,
         timestamp: Date.now(),
-      })
-        .then()
-        .catch((err) => {
-          fb.makeToast(err, 'error')
-        });
+      });
     },
     deleteMessage({ state }, payload) {
       if (state.currentUser.uid === payload.senderID) {
-        fb.chatsCollection.doc(state.currentChatId).collection('messages').doc(payload.messageID).delete()
+        fb.chatsCollection.doc(state.currentChatId).collection('messages').doc(payload.messageID).delete();
       } else {
-        fb.makeToast("You can't delete someone's message", 'error')
+        this.$toasted.show("You can't delete someone's message", { position: 'top-center', duration: 5000, action: { text: 'OK' } });
       }
-    },
-    updateUserProfile({ state }, payload) {
-      let avatarURL = ""
-      if (typeof state.userProfile.avatar === "string") {
-        fb.usersCollection.doc(state.userProfile.id).update({
-          name: payload.name,
-          workplace: payload.workplace,
-          city: payload.city,
-          birthday: Date.parse(payload.birthday),
-          phone: payload.phone,
-        }).then(() => {
-          fb.makeToast("Succesfully update profile")
-          this.$router.push('/chat')
-        }).catch(err => {
-          fb.makeToast(err, 'error')
-        })
-      } else {
-        fb.avatarsStorage.child(state.userProfile.id).put(payload.avatar).then((snapshot) => {
-          fb.avatarsStorage.child(state.userProfile.id).getDownloadURL().then(url => {
-            fb.usersCollection.doc(state.userProfile.id).update({
-              name: payload.name,
-              workplace: payload.workplace,
-              city: payload.city,
-              birthday: Date.parse(payload.birthday),
-              phone: payload.phone,
-              avatar: url,
-              avatarPreview: url,
-            }).then(() => {
-              fb.makeToast("Succesfully update profile")
-              this.$router.push('/chat')
-            }).catch(err => {
-              fb.makeToast(err, 'error')
-            })
-          })
-        })
-      }
-
-    },
-    getReceiverUserProfile({ state, commit }) {
-      fb.usersCollection.doc(state.receiverUser).get().then(snapshot => {
-        commit("setReceiverUserProfile", snapshot.data())
-      })
-
-    },
-    getChatsUploadedFile({ state, commit }) {
-
-    },
-    setUserActiveStatus({ state }) {
-      fb.usersCollection.doc(state.userProfile.id).update({
-        active: state.userProfile.active
-      }).then(() => {
-        console.log("zmieniłem status na: " + state.userProfile.active)
-        if(!state.userProfile.active) store.dispatch("logoutUser")
-      }).catch(err => {
-        console.log(err)
-      })
     },
   },
   mutations: {
@@ -169,8 +151,8 @@ export const store = new Vuex.Store({
     setUserProfile(state, val) {
       state.userProfile = val;
     },
-    changeUserActiveStatus(state,val) {
-        state.userProfile.active = val
+    changeUserActiveStatus(state, val) {
+      state.userProfile.active = val;
     },
     setUsersList(state, val) {
       state.usersList = val;
@@ -186,6 +168,6 @@ export const store = new Vuex.Store({
     },
     setReceiverUserProfile(state, val) {
       state.receiverUserProfile = val;
-    }
+    },
   },
 });

@@ -9,15 +9,14 @@
   },
   "dependencies": {
     "@fortawesome/vue-fontawesome": "^0.1.3",
-    "axios": "^0.18.0",
-    "buefy": "^0.7.1",
-    "bulma": "^0.7.2",
-    "bulma-toast": "^1.4.0",
     "firebase": "^5.7.0",
     "moment": "^2.23.0",
     "vue": "^2.5.17",
     "vue-chat-scroll": "^1.3.5",
+    "vue-full-screen-file-drop": "^1.0.0",
     "vue-router": "^3.0.1",
+    "vue-scrollto": "^2.13.0",
+    "vue-toasted": "^1.1.26",
     "vuex": "^3.0.1"
   },
   "devDependencies": {

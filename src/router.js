@@ -1,10 +1,10 @@
 import Vue from 'vue';
 import Router from 'vue-router';
-import firebase from 'firebase';
-import Auth from './views/Auth.vue';
+import SignIn from './views/SignIn.vue';
+import SignUp from './views/SignUp.vue';
 import Chat from './views/Chat.vue';
-import EditProfile from './views/EditProfile.vue';
 
+const fb = require('./firebaseConfig.js');
 
 Vue.use(Router);
 
@@ -14,25 +14,22 @@ const router = new Router({
   routes: [
     {
       path: '*',
-      redirect: '/chat',
+      redirect: '/',
+    },
+    {
+      path: '/signin',
+      name: 'signin',
+      component: SignIn,
+    },
+    {
+      path: '/signup',
+      name: 'signup',
+      component: SignUp,
     },
     {
       path: '/',
-      name: 'auth',
-      component: Auth,
-    },
-    {
-      path: '/chat',
       name: 'chat',
       component: Chat,
-      meta: {
-        requiresAuth: true,
-      },
-    },
-    {
-      path: '/edit',
-      name: 'edit',
-      component: EditProfile,
       meta: {
         requiresAuth: true,
       },
@@ -42,10 +39,10 @@ const router = new Router({
 
 router.beforeEach((to, from, next) => {
   const requiresAuth = to.matched.some(user => user.meta.requiresAuth);
-  const currentUser = firebase.auth().currentUser;
+  const currentUser = fb.auth.currentUser;
 
   if (requiresAuth && !currentUser) {
-    next('/');
+    next('/signin');
   } else if (requiresAuth && currentUser) {
     next();
   } else {
